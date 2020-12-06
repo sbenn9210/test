@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "nodemon server.js",
+    "build-db": "node src/db/migrate.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Shawn Benny",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server-express": "^2.19.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "graphql": "^15.4.0",
+    "nodemon": "^2.0.6",
+    "pg": "^8.5.1",
+    "sequelize": "^6.3.5",
+    "uuid": "^8.3.1"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.2.0"
+  }
+}
