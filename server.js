@@ -1,59 +1,51 @@
-const { ApolloServer, gql } = require("apollo-server-express");
+const { ApolloServer, makeExecutableSchema } = require("apollo-server-express");
 const express = require("express");
+const jsonwebtoken = require("express-jwt");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+const path = require("path");
+
+const { typeDefs: users, resolvers: userResolvers } = require("./graphql/user");
 
 const PORT = 4000;
 const app = express();
 
-// A schema is a collection of type definitions (hence "typeDefs")
-// that together define the "shape" of queries that are executed against
-// your data.
-const typeDefs = gql`
-  # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
+const authentication = jsonwebtoken({
+  secret: process.env.JWT_SECRET,
+  algorithms: ["HS256"],
+  credentialsRequired: false,
+});
 
-  # This "Book" type defines the queryable fields for every book in our data source.
-  type Book {
-    title: String
-    author: String
-  }
+app.use(authentication);
 
-  # The "Query" type is special: it lists all of the available queries that
-  # clients can execute, along with the return type for each. In this
-  # case, the "books" query returns an array of zero or more Books (defined above).
-  type Query {
-    books: [Book]
-  }
-`;
+// var corsOptions = {
+//   origin: process.env.CLIENT_ORIGIN,
+//   credentials: true,
+// };
 
-const books = [
-  {
-    title: "The Awakening",
-    author: "Kate Chopin",
-  },
-  {
-    title: "City of Glass",
-    author: "Paul Auster",
-  },
-];
+// app.use(cors(corsOptions));
 
-// Resolvers define the technique for fetching the types defined in the
-// schema. This resolver retrieves books from the "books" array above.
-const resolvers = {
-  Query: {
-    books: () => books,
-  },
-};
+const schema = makeExecutableSchema({
+  typeDefs: [users],
+  resolvers: [userResolvers],
+});
 
-// The ApolloServer constructor requires two parameters: your schema
-// definition and your set of resolvers.
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
+  schema,
   playground: {
     endpoint: "/graphql",
   },
+  context: ({ req }) => {
+    const loggedInUser = req.header.user
+      ? JSON.parse(req.header.user)
+      : req.user
+      ? req.user
+      : null;
+    return { loggedInUser };
+  },
 });
 
-server.applyMiddleware({ app });
+server.applyMiddleware({ app, cors: false });
 
 app.listen(PORT, () => {
   console.log(`🚀 The server is listening on ${PORT}`);
