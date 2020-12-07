@@ -35,7 +35,7 @@ const resolvers = {
       if (loggedInUser) {
         return await User.findOne({ where: { id: loggedInUser.id } });
       }
-      throw new Error(invalidUser);
+      throw new Error("This is not a logged in user");
     },
   },
   Mutation: {
