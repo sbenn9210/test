@@ -8,7 +8,6 @@ const { typeDefs: users, resolvers: userResolvers } = require("./graphql/user");
 
 const PORT = 4000;
 const app = express();
-
 const authentication = jsonwebtoken({
   secret: process.env.JWT_SECRET,
   algorithms: ["HS256"],
@@ -17,12 +16,12 @@ const authentication = jsonwebtoken({
 
 app.use(authentication);
 
-// var corsOptions = {
-//   origin: process.env.CLIENT_ORIGIN,
-//   credentials: true,
-// };
+var corsOptions = {
+  origin: "http://localhost:3000",
+  credentials: true,
+};
 
-// app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 
 const schema = makeExecutableSchema({
   typeDefs: [users],
@@ -35,6 +34,7 @@ const server = new ApolloServer({
     endpoint: "/graphql",
   },
   context: ({ req }) => {
+    console.log(req.header.user);
     const loggedInUser = req.header.user
       ? JSON.parse(req.header.user)
       : req.user
