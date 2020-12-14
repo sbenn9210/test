@@ -2,12 +2,16 @@ const { ApolloServer, makeExecutableSchema } = require("apollo-server-express");
 const express = require("express");
 const jsonwebtoken = require("express-jwt");
 const cors = require("cors");
-const path = require("path");
+const cookieParser = require("cookie-parser");
 
 const { typeDefs: users, resolvers: userResolvers } = require("./graphql/user");
 
 const PORT = 4000;
 const app = express();
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
+
+app.use(cookieParser(COOKIE_SECRET));
+
 const authentication = jsonwebtoken({
   secret: process.env.JWT_SECRET,
   algorithms: ["HS256"],
@@ -33,15 +37,7 @@ const server = new ApolloServer({
   playground: {
     endpoint: "/graphql",
   },
-  context: ({ req }) => {
-    console.log(req.header.user);
-    const loggedInUser = req.header.user
-      ? JSON.parse(req.header.user)
-      : req.user
-      ? req.user
-      : null;
-    return { loggedInUser };
-  },
+  context: (req) => ({ ...req }),
 });
 
 server.applyMiddleware({ app, cors: false });
