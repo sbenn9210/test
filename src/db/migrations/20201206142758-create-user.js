@@ -20,6 +20,10 @@ module.exports = {
       phone: {
         type: Sequelize.STRING,
       },
+      count: {
+        type: Sequelize.INTEGER,
+        defaultValue: "0",
+      },
       created_at: {
         allowNull: false,
         type: Sequelize.DATE,

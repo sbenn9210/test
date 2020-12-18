@@ -2,6 +2,7 @@ require("dotenv").config();
 const { gql } = require("apollo-server-express");
 const bcrypt = require("bcrypt");
 const jsonwebtoken = require("jsonwebtoken");
+const Sequelize = require("sequelize");
 
 const { User } = require("../src/db/models");
 
@@ -23,23 +24,24 @@ const typeDefs = gql`
       email: String!
       phone: String!
       password: String!
-    ): String
-    login(email: String!, password: String!): String
+    ): User
+    login(email: String!, password: String!): User
     checkNewUser(email: String!): String
+    invalidateTokens: Boolean!
   }
 `;
 
 const resolvers = {
   Query: {
-    async current(_, args, { loggedInUser }) {
-      if (loggedInUser) {
-        return await User.findOne({ where: { id: loggedInUser.id } });
+    async current(_, args, { req }) {
+      if (!req.userId) {
+        return null;
       }
-      throw new Error("This is not a logged in user");
+      return await User.findOne({ where: { id: req.userId } });
     },
   },
   Mutation: {
-    async register(_, { name, email, phone, password }) {
+    async register(_, { name, email, phone, password }, { res }) {
       const existingUser = await User.findOne({ where: { email } });
 
       if (existingUser) {
@@ -52,13 +54,29 @@ const resolvers = {
         password: await bcrypt.hash(password, 10),
       });
 
-      return jsonwebtoken.sign(
-        { id: user.id, email: user.email },
+      const accessToken = jsonwebtoken.sign(
+        { userId: user.id, email: user.email },
         process.env.JWT_SECRET,
-        { expiresIn: "10d" }
+        { expiresIn: "15min" }
       );
+      const refreshToken = jsonwebtoken.sign(
+        { userId: user.id, email: user.email, count: user.count },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      res.cookie("refresh-token", refreshToken, {
+        httpOnly: true,
+        signed: true,
+      });
+      res.cookie("access-token", accessToken, {
+        httpOnly: true,
+        signed: true,
+      });
+
+      return user;
     },
-    async login(_, { email, password }) {
+    async login(_, { email, password }, { res }) {
       const user = await User.findOne({ where: { email } });
 
       if (!user) {
@@ -71,11 +89,45 @@ const resolvers = {
         throw new Error(incorrectPassword);
       }
 
-      return jsonwebtoken.sign(
-        { id: user.id, email: user.email },
+      const accessToken = jsonwebtoken.sign(
+        { userId: user.id, email: user.email },
         process.env.JWT_SECRET,
-        { expiresIn: "10d" }
+        { expiresIn: "15min" }
       );
+      const refreshToken = jsonwebtoken.sign(
+        { userId: user.id, email: user.email, count: user.count },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      res.cookie("refresh-token", refreshToken, {
+        httpOnly: true,
+        signed: true,
+      });
+      res.cookie("access-token", accessToken, {
+        httpOnly: true,
+        signed: true,
+      });
+
+      return user;
+    },
+
+    invalidateTokens: async (_, __, { req }) => {
+      console.log(req.userId);
+      if (!req.userId) {
+        return false;
+      }
+
+      try {
+        await User.update(
+          { count: Sequelize.literal("count + 1") },
+          { where: { id: req.userId } }
+        );
+      } catch (error) {
+        throw new Error(error);
+      }
+
+      return true;
     },
     async checkNewUser(_, { email }) {
       const existingUser = await User.findOne({ where: { email } });
